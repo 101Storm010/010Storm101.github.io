@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Server lädt …</title>
+  <style>
+    html,body {height:100%; margin:0; font-family:system-ui, sans-serif; background:#0b0f16; color:#e6edf3;}
+    .wrap {display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:16px; text-align:center; padding:24px;}
+    .card {background:#121826; border:1px solid #20283a; border-radius:16px; padding:20px 24px; max-width:640px; width:100%;}
+    .row {display:flex; align-items:center; gap:12px; justify-content:center; flex-wrap:wrap;}
+    input[type="range"] {width:220px;}
+    button {background:#1f6feb; color:white; border:none; border-radius:10px; padding:10px 14px; cursor:pointer;}
+    button.secondary {background:#263041;}
+    .hint {opacity:.8; font-size:.9rem;}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Verbinde zum Server …</h1>
+  <div class="card">
+    <p class="hint">Musiklautstärke (nur für dich):</p>
+    <div class="row">
+      <button id="muteBtn" class="secondary">🔇 Stumm</button>
+      <input id="vol" type="range" min="0" max="100" step="1" />
+      <span id="volLabel">–%</span>
+      <button id="playBtn">▶️ Abspielen</button>
+    </div>
+  </div>
+
+  <p class="hint" id="status">Lade Musik …</p>
+</div>
+
+<!-- Deine Musikdatei (mp3/ogg). Hoste sie am besten auf demselben Origin wie die Seite -->
+<audio id="bgm" src="media/loading-theme.ogg" loop preload="auto"></audio>
+
+<script>
+(function(){
+  const audio = document.getElementById('bgm');
+  const vol = document.getElementById('vol');
+  const volLabel = document.getElementById('volLabel');
+  const muteBtn = document.getElementById('muteBtn');
+  const playBtn = document.getElementById('playBtn');
+  const status = document.getElementById('status');
+  const LS_KEY_VOL = 'gmod_loading_volume';
+  const LS_KEY_MUTED = 'gmod_loading_muted';
+
+  // Startwerte laden
+  const savedVol = Number(localStorage.getItem(LS_KEY_VOL));
+  const savedMuted = localStorage.getItem(LS_KEY_MUTED) === '1';
+
+  const initialVol = Number.isFinite(savedVol) ? Math.min(100, Math.max(0, savedVol)) : 20; // default 20%
+  vol.value = initialVol;
+  audio.volume = initialVol / 100;
+  audio.muted = savedMuted;
+
+  function updateUI(){
+    volLabel.textContent = (audio.muted ? 0 : Math.round(audio.volume*100)) + '%';
+    muteBtn.textContent = audio.muted ? '🔈 Entstummen' : '🔇 Stumm';
+  }
+  updateUI();
+
+  // Lautstärke-Änderungen speichern
+  vol.addEventListener('input', () => {
+    const v = Number(vol.value);
+    audio.volume = v / 100;
+    audio.muted = false;
+    localStorage.setItem(LS_KEY_VOL, String(v));
+    localStorage.setItem(LS_KEY_MUTED, '0');
+    updateUI();
+  });
+
+  muteBtn.addEventListener('click', () => {
+    audio.muted = !audio.muted;
+    localStorage.setItem(LS_KEY_MUTED, audio.muted ? '1' : '0');
+    updateUI();
+  });
+
+  // Manuelles Starten falls Autoplay blockiert ist
+  playBtn.addEventListener('click', async () => {
+    try { await audio.play(); status.textContent = 'Musik läuft'; }
+    catch(e){ status.textContent = 'Konnte nicht abspielen: ' + e.message; }
+  });
+
+  // Automatisch versuchen zu starten (GMod erlaubt Autoplay i.d.R.)
+  audio.addEventListener('canplay', async () => {
+    try { await audio.play(); status.textContent = 'Musik läuft'; playBtn.style.display='none'; }
+    catch { status.textContent = 'Klicke „Abspielen“, um die Musik zu starten.'; playBtn.style.display='inline-block'; }
+  });
+
+  // Fallback falls canplay schon fired hat
+  (async () => {
+    try { await audio.play(); status.textContent = 'Musik läuft'; playBtn.style.display='none'; }
+    catch { status.textContent = 'Klicke „Abspielen“, um die Musik zu starten.'; playBtn.style.display='inline-block'; }
+  })();
+})();
+</script>
+</body>
+</html>
